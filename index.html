@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô phỏng LZW & Báo cáo lý thuyết nén dữ liệu</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (Font Awesome alternative) via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <i data-lucide="shrink"></i>
+                </div>
+                <div>
+                    <h1>BÀI TẬP LỚN SỐ 2: THUẬT TOÁN LZW</h1>
+                    <p class="subtitle">Xây dựng & Mô phỏng Bộ nén/Giải nén dữ liệu không mất mát LZW</p>
+                </div>
+            </div>
+            <div class="team-info">
+                <div class="team-badge"><i data-lucide="users" class="icon-inline"></i> Nhóm Thực Hiện</div>
+                <div class="team-names">Trần Văn A - Nguyễn Thị B</div>
+            </div>
+        </header>
+
+        <!-- Main Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('simulation')">
+                <i data-lucide="cpu"></i> Thực Nghiệm LZW
+            </button>
+            <button class="tab-btn" onclick="switchTab('theory')">
+                <i data-lucide="book-open"></i> Báo Cáo Lý Thuyết
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- SECTION 1: SIMULATION & EXPERIMENT -->
+            <section id="tab-simulation" class="tab-content active">
+                <div class="grid-layout">
+                    <!-- Left Column: Input and Configuration -->
+                    <div class="card config-card">
+                        <div class="card-header">
+                            <i data-lucide="sliders" class="header-icon"></i>
+                            <h2>Cấu Hình Đầu Vào</h2>
+                        </div>
+                        <div class="card-body">
+                            <!-- Dict Selection -->
+                            <div class="form-group">
+                                <label for="dict-type">Loại từ điển khởi tạo</label>
+                                <select id="dict-type" onchange="handleDictTypeChange()">
+                                    <option value="ascii">Mặc định ASCII (0-255) - Chuẩn thực tế</option>
+                                    <option value="az">Ký tự A-Z (Mã 1-26) - Dễ trace mẫu học tập</option>
+                                    <option value="custom">Tự định nghĩa theo chuỗi vào (Mã 1-N)</option>
+                                </select>
+                                <small class="input-hint">Từ điển ASCII phù hợp cho mọi tệp tin. Các từ điển tối giản giúp bảng trace ngắn gọn và dễ theo dõi hơn.</small>
+                            </div>
+
+                            <!-- Input Method Tabs -->
+                            <div class="input-toggle">
+                                <button class="toggle-btn active" id="input-text-btn" onclick="toggleInputMethod('text')">
+                                    <i data-lucide="align-left"></i> Nhập chuỗi
+                                </button>
+                                <button class="toggle-btn" id="input-file-btn" onclick="toggleInputMethod('file')">
+                                    <i data-lucide="file-text"></i> Đọc File văn bản
+                                </button>
+                            </div>
+
+                            <!-- Text Input Area -->
+                            <div id="text-input-group" class="form-group input-method-group">
+                                <label for="input-text">Chuỗi ký tự cần nén</label>
+                                <textarea id="input-text" placeholder="Nhập chuỗi văn bản hoặc pixel ảnh..." rows="5">TOBEORNOTTOBEORTOBEORNOT</textarea>
+                                <div class="quick-examples">
+                                    <span>Chuỗi mẫu:</span>
+                                    <button class="chip" onclick="loadSample('TOBEORNOTTOBEORTOBEORNOT')">TOBEORNOT...</button>
+                                    <button class="chip" onclick="loadSample('ABABABA')">ABABABA</button>
+                                    <button class="chip" onclick="loadSample('Bán_bóng_bay_bay_bay_bay_bay')">Tiếng Việt lặp</button>
+                                </div>
+                            </div>
+
+                            <!-- File Input Area -->
+                            <div id="file-input-group" class="form-group input-method-group d-none">
+                                <label>Tải lên File văn bản (.txt)</label>
+                                <div class="drop-zone" id="file-drop-zone">
+                                    <i data-lucide="upload-cloud" class="drop-icon"></i>
+                                    <p class="drop-text">Kéo thả file vào đây hoặc click để chọn file</p>
+                                    <input type="file" id="file-selector" accept=".txt" class="d-none">
+                                    <div id="file-info" class="file-info d-none">
+                                        <i data-lucide="check-circle" class="success-icon"></i>
+                                        <span id="file-name">filename.txt</span>
+                                        <span id="file-size">(0 KB)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Button -->
+                            <button class="btn btn-primary btn-block" onclick="runLZW()">
+                                <i data-lucide="play"></i> Bắt đầu Nén & Giải nén LZW
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Stats & Overview -->
+                    <div class="card stats-card">
+                        <div class="card-header">
+                            <i data-lucide="bar-chart-2" class="header-icon"></i>
+                            <h2>Kết Quả & Tỷ Lệ Nén</h2>
+                        </div>
+                        <div class="card-body">
+                            <!-- Success Check Badge -->
+                            <div id="verification-status" class="verification-badge waiting">
+                                <i data-lucide="help-circle"></i>
+                                <span>Chờ chạy dữ liệu...</span>
+                            </div>
+
+                            <!-- Metric Grid -->
+                            <div class="metric-grid">
+                                <div class="metric-box">
+                                    <span class="metric-title">Số ký tự gốc</span>
+                                    <span class="metric-value" id="stat-orig-chars">-</span>
+                                    <span class="metric-sub" id="stat-orig-bits">-</span>
+                                </div>
+                                <div class="metric-box">
+                                    <span class="metric-title">Mã nén đầu ra</span>
+                                    <span class="metric-value" id="stat-comp-codes">-</span>
+                                    <span class="metric-sub" id="stat-comp-bits">-</span>
+                                </div>
+                                <div class="metric-box highlighted">
+                                    <span class="metric-title">Tỷ lệ nén (CR)</span>
+                                    <span class="metric-value" id="stat-ratio">-</span>
+                                    <span class="metric-sub">Kích thước Gốc / Nén</span>
+                                </div>
+                                <div class="metric-box highlighted">
+                                    <span class="metric-title">Tiết kiệm không gian</span>
+                                    <span class="metric-value" id="stat-saving">-</span>
+                                    <span class="metric-sub">Dung lượng giảm (%)</span>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar Visualizer -->
+                            <div class="saving-progress-container">
+                                <div class="progress-labels">
+                                    <span>Tỷ lệ nén dữ liệu</span>
+                                    <span id="progress-percent">0%</span>
+                                </div>
+                                <div class="progress-bar-bg">
+                                    <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Compressed Code Output Area -->
+                            <div class="form-group compressed-result-area">
+                                <label><i data-lucide="binary" class="icon-inline"></i> Chuỗi mã số nén đầu ra (Compressed Codes)</label>
+                                <div class="code-output-container">
+                                    <code id="compressed-output" class="code-box">Chưa có kết quả</code>
+                                    <button class="btn-copy" onclick="copyText('compressed-output')" title="Copy chuỗi mã">
+                                        <i data-lucide="copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Decompressed Check -->
+                            <div class="form-group decompressed-result-area">
+                                <label><i data-lucide="unlock" class="icon-inline"></i> Dữ liệu giải nén phục hồi (Decompressed Text)</label>
+                                <div class="code-output-container">
+                                    <code id="decompressed-output" class="code-box">Chưa có kết quả</code>
+                                    <button class="btn-copy" onclick="copyText('decompressed-output')" title="Copy văn bản">
+                                        <i data-lucide="copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Visualizer Tabs & Control -->
+                <div class="card visualizer-card d-none" id="visualizer-card">
+                    <div class="card-header visualizer-header">
+                        <div class="visualizer-title">
+                            <i data-lucide="eye" class="header-icon"></i>
+                            <h2>Bảng Mô Phỏng Từng Bước (Trace Visualizer)</h2>
+                        </div>
+                        <div class="visualizer-tabs">
+                            <button class="viz-tab-btn active" onclick="switchVizTab('encoder')">Trình Mã Hóa (Encoder)</button>
+                            <button class="viz-tab-btn" onclick="switchVizTab('decoder')">Trình Giải Mã (Decoder)</button>
+                            <button class="viz-tab-btn" onclick="switchVizTab('dict')">Từ Điển Sinh Ra (Dictionary)</button>
+                        </div>
+                    </div>
+
+                    <!-- Step-by-Step Playback Controls -->
+                    <div class="playback-controls">
+                        <div class="playback-info">
+                            <span>Bước: <strong id="current-step-display">1</strong> / <span id="total-steps-display">-</span></span>
+                        </div>
+                        <div class="playback-buttons">
+                            <button class="btn-playback" onclick="playbackControl('start')" title="Về đầu"><i data-lucide="chevrons-left"></i></button>
+                            <button class="btn-playback" onclick="playbackControl('prev')" title="Lùi lại"><i data-lucide="chevron-left"></i></button>
+                            <button class="btn-playback btn-play" id="btn-play" onclick="playbackControl('play')" title="Chạy tự động"><i data-lucide="play"></i> Tự chạy</button>
+                            <button class="btn-playback" onclick="playbackControl('next')" title="Kế tiếp"><i data-lucide="chevron-right"></i></button>
+                            <button class="btn-playback" onclick="playbackControl('end')" title="Về cuối"><i data-lucide="chevrons-right"></i></button>
+                        </div>
+                        <div class="playback-speed">
+                            <label for="speed-range">Tốc độ:</label>
+                            <input type="range" id="speed-range" min="100" max="1500" step="100" value="600" onchange="updatePlaybackSpeed()">
+                            <span id="speed-display">600ms</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body scrollable-body">
+                        <!-- ENCODER TRACE TABLE -->
+                        <div id="viz-encoder" class="viz-tab-content active">
+                            <table class="trace-table" id="encoder-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bước</th>
+                                        <th>Chuỗi hiện tại (W)</th>
+                                        <th>Ký tự đọc (K)</th>
+                                        <th>Kết hợp (W+K)</th>
+                                        <th>Trạng thái trong Từ Điển</th>
+                                        <th>Xuất Mã (Output)</th>
+                                        <th>Cập Nhật Từ Điển</th>
+                                        <th>Mô Tả Chi Tiết Hành Động</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="encoder-table-body">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- DECODER TRACE TABLE -->
+                        <div id="viz-decoder" class="viz-tab-content">
+                            <table class="trace-table" id="decoder-table">
+                                <thead>
+                                    <tr>
+                                        <th>Bước</th>
+                                        <th>Mã nhận (Code)</th>
+                                        <th>Chuỗi xuất ra (Output)</th>
+                                        <th>Từ khóa trước (W)</th>
+                                        <th>Ký tự đầu tiên (c)</th>
+                                        <th>W + c</th>
+                                        <th>Cập Nhật Từ Điển mới</th>
+                                        <th>Diễn giải chi tiết</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="decoder-table-body">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- DICTIONARY VIEW -->
+                        <div id="viz-dict" class="viz-tab-content">
+                            <div class="dict-grid-container">
+                                <div class="dict-section">
+                                    <h3>Từ điển khởi tạo ban đầu</h3>
+                                    <div class="dict-grid" id="initial-dict-grid"></div>
+                                </div>
+                                <div class="dict-divider"></div>
+                                <div class="dict-section">
+                                    <h3>Từ điển mới được thêm vào lúc nén</h3>
+                                    <div class="dict-grid" id="added-dict-grid"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+            <!-- SECTION 2: THEORETICAL REPORT -->
+            <section id="tab-theory" class="tab-content">
+                <div class="report-controls">
+                    <button class="btn btn-secondary" onclick="window.print()">
+                        <i data-lucide="printer"></i> In/Xuất báo cáo PDF
+                    </button>
+                </div>
+                
+                <div class="report-document" id="printable-report">
+                    <div class="report-title-page">
+                        <h3>TRƯỜNG ĐẠI HỌC BÁCH KHOA HÀ NỘI</h3>
+                        <h4>KHOA ĐIỆN TỬ VIỄN THÔNG</h4>
+                        <div class="divider"></div>
+                        <h1>BÁO CÁO BÀI TẬP LỚN SỐ 2</h1>
+                        <h2>Đề tài: Xây dựng và Trace bộ nén và giải nén dữ liệu không mất mát bằng thuật toán từ điển LZW</h2>
+                        <div class="report-meta">
+                            <p><strong>Môn học:</strong> Truyền thông Đa phương tiện</p>
+                            <p><strong>Nhóm thực hiện:</strong> Nhóm LZW-DPT</p>
+                            <p><strong>Thành viên:</strong> Trần Văn A - Nguyễn Thị B</p>
+                            <p><strong>Thời gian:</strong> Tháng 06 Năm 2026</p>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2>1. Giới hạn nén lý thuyết Entropy của Shannon</h2>
+                        <p>Trong Lý thuyết thông tin (Information Theory), <strong>Entropy</strong> là thước đo mức độ bất định hoặc độ hỗn loạn thông tin của một nguồn tin. Được Claude Shannon công bố vào năm 1948, Entropy đặt ra giới hạn lý thuyết tối đa về mặt toán học cho việc nén dữ liệu không mất mát (Lossless Compression).</p>
+                        
+                        <h3>Công thức toán học</h3>
+                        <p>Entropy của một nguồn tin rời rạc $X$ với tập các ký hiệu khả dĩ $x_1, x_2, ..., x_n$ và các xác suất xuất hiện tương ứng $p(x_1), p(x_2), ..., p(x_n)$ được tính bằng:</p>
+                        
+                        <div class="math-box">
+                            $$H(X) = - \sum_{i=1}^{n} p(x_i) \log_2 p(x_i) \quad \text{(đơn vị: bits/ký tự)}$$
+                        </div>
+
+                        <h3>Ý nghĩa của Entropy trong nén dữ liệu:</h3>
+                        <ul>
+                            <li><strong>Độ dài mã trung bình tối thiểu:</strong> Không có thuật toán nén không mất mát nào có thể biểu diễn nguồn tin $X$ với độ dài mã trung bình cho mỗi ký hiệu nhỏ hơn giá trị Entropy $H(X)$ của nguồn đó.</li>
+                            <li><strong>Entropy cao (Dữ liệu ngẫu nhiên):</strong> Khi các ký hiệu phân bố đều (xác suất bằng nhau), Entropy đạt giá trị cực đại. Dữ liệu ngẫu nhiên hoặc đã được mã hóa tốt sẽ có độ lặp lại rất thấp, dẫn đến Entropy cao và hầu như không thể nén thêm.</li>
+                            <li><strong>Entropy thấp (Dữ liệu lặp lại):</strong> Khi một số ký hiệu xuất hiện với tần suất cực cao (ví dụ: khoảng trắng, nguyên âm trong văn bản, hoặc các dải pixel liên tiếp giống nhau của ảnh đồ họa phẳng), Entropy sẽ thấp. Đây chính là mảnh đất màu mỡ cho các thuật toán nén dữ liệu khai thác để rút gọn kích thước.</li>
+                        </ul>
+                    </div>
+
+                    <div class="report-section">
+                        <h2>2. Nguyên lý hoạt động của thuật toán mã hóa từ điển động LZW</h2>
+                        <p>Thuật toán LZW (Lempel-Ziv-Welch) do Terry Welch phát triển vào năm 1984 dựa trên thuật toán LZ78 của Abraham Lempel và Jacob Ziv. Đây là thuật toán nén <strong>dựa trên từ điển (dictionary-based)</strong>, hoạt động bằng cách thay thế các chuỗi ký tự lặp lại bằng một mã số duy nhất tương ứng trong từ điển được dựng động trong quá trình chạy.</p>
+                        
+                        <div class="workflow-container">
+                            <div class="workflow-box">
+                                <h3><i data-lucide="arrow-right-circle" class="icon-inline"></i> Nguyên lý Mã hóa (Encoder)</h3>
+                                <ol>
+                                    <li>Khởi tạo từ điển chứa toàn bộ các ký tự đơn lẻ cơ bản ban đầu (ví dụ: 256 ký tự bảng mã ASCII hoặc bảng chữ cái đơn).</li>
+                                    <li>Đặt chuỗi hiện tại $W$ là rỗng (hoặc ký tự đầu tiên).</li>
+                                    <li>Đọc ký tự tiếp theo $K$ từ luồng dữ liệu vào.</li>
+                                    <li>Nếu chuỗi kết hợp $W + K$ đã tồn tại trong từ điển:
+                                        <ul>
+                                            <li>Gán $W = W + K$ (không xuất mã, tiếp tục tìm chuỗi dài hơn).</li>
+                                        </ul>
+                                    </li>
+                                    <li>Nếu chuỗi kết hợp $W + K$ chưa tồn tại trong từ điển:
+                                        <ul>
+                                            <li>Xuất ra mã số tương ứng của chuỗi $W$ hiện tại.</li>
+                                            <li>Thêm chuỗi $W + K$ vào từ điển với mã số mới nhất khả dụng.</li>
+                                            <li>Đặt chuỗi hiện tại $W = K$.</li>
+                                        </ul>
+                                    </li>
+                                    <li>Lặp lại bước 3 cho đến hết luồng dữ liệu. Xuất mã của $W$ còn lại ở bước cuối.</li>
+                                </ol>
+                            </div>
+
+                            <div class="workflow-box">
+                                <h3><i data-lucide="arrow-left-circle" class="icon-inline"></i> Nguyên lý Giải mã (Decoder)</h3>
+                                <ol>
+                                    <li>Khởi tạo cùng một từ điển cơ bản ban đầu giống hệt như bộ mã hóa.</li>
+                                    <li>Đọc mã số đầu tiên trong luồng mã nén và gán cho $oldCode$.</li>
+                                    <li>Tra cứu từ điển và xuất ra chuỗi tương ứng của $oldCode$. Gán ký tự đầu tiên của chuỗi này cho $c$.</li>
+                                    <li>Đọc mã số tiếp theo từ luồng nén gán cho $code$.</li>
+                                    <li>Kiểm tra tính tồn tại của $code$ trong từ điển:
+                                        <ul>
+                                            <li><strong>Trường hợp thường (Đã có mã):</strong> Gán $entry$ là chuỗi tra được của $code$ trong từ điển.</li>
+                                            <li><strong>Trường hợp đặc biệt (Chưa có mã - code == nextCode):</strong> Gán $entry = s + c$ (trong đó $s$ là chuỗi giải được từ bước trước và $c$ là ký tự đầu tiên của chuỗi $s$).</li>
+                                        </ul>
+                                    </li>
+                                    <li>Xuất chuỗi $entry$ ra dòng đầu ra giải mã.</li>
+                                    <li>Đặt $c$ là ký tự đầu tiên của chuỗi $entry$.</li>
+                                    <li>Thêm chuỗi liên kết của bước trước với ký tự $c$ mới này ($s + c$) vào từ điển với mã số mới nhất.</li>
+                                    <li>Gán $oldCode = code$, gán $s = entry$.</li>
+                                    <li>Lặp lại bước 4 cho tới khi giải mã hết tất cả các mã số.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="report-section">
+                        <h2>3. Giải thích cơ chế tự khôi phục từ điển của Decoder</h2>
+                        <p>Một điểm ưu việt nổi tiếng của LZW là <strong>không cần truyền kèm bảng từ điển</strong> từ phía phát (Encoder) sang phía thu (Decoder). Điều này giúp tiết kiệm tối đa băng thông đường truyền. Decoder có thể tự phục hồi lại chính xác 100% từ điển động trong quá trình giải mã dựa trên nguyên lý suy luận đồng bộ:</p>
+                        
+                        <div class="explanation-card">
+                            <h4><i data-lucide="help-circle" class="icon-inline"></i> Cơ chế suy luận đồng bộ</h4>
+                            <p>Mỗi khi Encoder xuất ra một mã nén $C$ biểu thị cho chuỗi $W$, đồng thời nó sẽ thêm một chuỗi mới $W + K$ vào từ điển của nó (với $K$ là ký tự đầu tiên của chuỗi tiếp theo). Do đó, chuỗi tiếp theo được mã hóa sẽ luôn bắt đầu bằng ký tự $K$.</p>
+                            <p>Về phía Decoder, khi nhận được mã kế tiếp, nó giải ra chuỗi mới và lấy ký tự đầu tiên $c$ của chuỗi mới đó. Ký tự $c$ này chính là ký tự $K$ mà Encoder đã đọc trước đó. Nhờ vậy, Decoder có thể ghép chuỗi giải được của bước trước ($s$) với $c$ để tạo thành chuỗi mới ($s+c$) và thêm vào từ điển của mình đúng tại vị trí mã số mà Encoder đã thêm.</p>
+                            
+                            <h4><i data-lucide="alert-triangle" class="icon-inline"></i> Giải quyết trường hợp đặc biệt (Boundary Case)</h4>
+                            <p>Khi gặp chuỗi có mẫu dạng <code>character + sequence + character + sequence + character</code> (ví dụ: nén <code>ABABABA</code>), Encoder sẽ xuất ra mã số cho chuỗi vừa mới được thêm vào từ điển trước khi Decoder kịp định nghĩa mã đó. Điều này xảy ra khi Decoder nhận được mã số đúng bằng $nextCode$ tiếp theo chưa được khai báo.</p>
+                            <p>Do cấu trúc thuật toán, Decoder suy luận được rằng mã vừa nhận chỉ có thể là sự lặp lại của chuỗi trước đó cộng với ký tự đầu tiên của chính nó. Do đó, Decoder tự tạo ra chuỗi khớp bằng công thức $entry = s + c$ (với $s$ là chuỗi cũ, $c$ là ký tự đầu của $s$). Từ điển sau đó được cập nhật chính xác và đồng bộ hoàn toàn với Encoder.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 - Dự án Mô Phỏng Truyền Thông Đa Phương Tiện - HUST</p>
+        </footer>
+    </div>
+
+    <!-- Load App Scripts -->
+    <script src="lzw.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
