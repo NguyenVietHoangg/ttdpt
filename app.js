@@ -25,6 +25,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize Lucide Icons
   lucide.createIcons();
 
+  // Theme Switching Logic
+  initTheme();
+
   // Setup drag & drop for file input
   setupDragAndDrop();
 
@@ -43,6 +46,23 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load default trace table layout or run default immediately
   runLZW();
 });
+
+// Theme management
+function initTheme() {
+  const themeToggleBtn = document.getElementById("theme-toggle-btn");
+  if (!themeToggleBtn) return;
+
+  // Retrieve theme from localStorage or default to light theme (since the user requested white background)
+  const savedTheme = localStorage.getItem("app-theme") || "light";
+  document.documentElement.setAttribute("data-theme", savedTheme);
+
+  themeToggleBtn.addEventListener("click", () => {
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("app-theme", newTheme);
+  });
+}
 
 // Switching main sections (Simulation vs Theory)
 function switchTab(tabId) {
